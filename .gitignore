@@ -1,18 +1,327 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
+import sqlalchemy as db
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Float, or_
+# sessionmaker é o equivalente ao cursor do pymysql
+from sqlalchemy.orm import sessionmaker
 
-# Other files and folders
-.settings/
+# IMPORTS tkinter
+from tkinter import *
+from tkinter import messagebox as tmsg
+from tkinter import ttk
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# Criando uma conexão
+# engine
+# create_engine("<driver>://<user>:<passoword>@<servidor>:<porta>/<db>")
+
+
+def get_conexao():
+    return db.create_engine("mysql+pymysql://root:@localhost:3306/turma109")
+
+
+# Criando a classe base
+Base = declarative_base()
+
+
+# Criando uma entidade
+# Esta classe vai se tornar uma tabela dentro
+# do nosso SGBD
+class Aluno(Base):
+    # Definindo o nome da tabela
+    __tablename__ = "aluno"
+    # Definindo as colunas
+    # Colunas são instâncias de Column
+    # Onde elas recebem os tipos importados e suas propriedades
+    # Dentre elas temos, primary_key, autoincrement, nullable, etc
+    matricula = Column(Integer, primary_key=True, autoincrement=True)
+    nome = Column(String(60), nullable=False)
+    idade = Column(Integer, nullable=False)
+    curso = Column(String(60))
+    nota = Column(Float)
+
+    # O método mágico "__repr__" nos permite
+    # definir o que exibir quando tentarmos imprimir
+    # um objeto
+    def __repr__(self):
+        return f'[Matricula: {self.matricula}, Nome: {self.nome} ' \
+               f'Idade: {self.idade}, Curso: {self.curso}, Nota: {self.nota}]'
+
+
+# Método responsável por criar os modelos
+# Dentro da nossa base de dados
+# Base.metadata.create_all(get_conexao())
+
+
+# Criando uma sessão
+Session = sessionmaker(bind=get_conexao())
+session = Session()
+
+
+def inserir(nome, idade, curso, nota):
+    # Criando uma instância de aluno
+    # que será inserida dentro da nossa tabela
+    # de alunos
+    a1 = Aluno(nome=nome, idade=idade, curso=curso, nota=nota)
+    # Executando os métodos de inserção
+    # e commitando (validando) os dados
+    # na tabela
+    session.add(a1)
+    session.commit()
+
+
+# inserir("Marina Soares", 22, "Metaverso", 5.0)
+# inserir("Marcos Sousa", 31, "Design", 4.7)
+
+
+def select():
+    # Realizando consultas
+    alunos = session.query(Aluno).all()
+
+
+    for aluno in alunos:
+        print(aluno)
+
+    return alunos
+
+
+# select()
+
+def select_filter():
+    # o método filter corresponde a clausula WHERE do SQL
+    alunos = session.query(Aluno).filter(Aluno.nota < 6).all()
+    for aluno in alunos:
+        print(aluno)
+
+
+# select_filter()
+
+def select_like():
+    alunos = session.query(Aluno).filter(Aluno.nome.like('ma%')).all()
+    for aluno in alunos:
+        print(aluno)
+
+
+def select_and():
+    # Consultas com o operador lógico and, podem ser feitas
+    # separando as expressões com vírgula ou utilizando o
+    # próprio operador and do python
+    alunos = session.query(Aluno).filter(Aluno.curso == "Design",
+                                         Aluno.nota < 5).all()
+
+    for aluno in alunos:
+        print(aluno)
+
+
+# select_and()
+
+def select_or():
+    # operador or_ vai servir para operação com or
+    # dentro da função or_ basta separar as expressões
+    # com vírgula
+    alunos = session.query(Aluno).filter(or_(Aluno.curso == 'Design',
+                                             Aluno.curso == 'Metaverso')).all()
+    for aluno in alunos:
+        print(aluno)
+
+
+# select_or()
+
+def alterar(matricula, nome, idade, curso, nota):
+    aluno = session.query(Aluno).filter(Aluno.matricula == matricula).one()
+    aluno.nome = nome
+    aluno.idade = idade
+    aluno.curso = curso
+    aluno.nota = nota
+    session.add(aluno)
+    session.commit()
+    # Alterações podem ser feitas consultando o aluno ou alunos
+    # que se deseja alterar e executar o método add para envia-lo
+    # a base de dados com seus novos valores
+
+
+# alterar(1, "Thiago Feitosa", 17, "Marketing", 7)
+# select()
+
+def deletar(matricula):
+    aluno = session.query(Aluno).filter(Aluno.matricula == matricula).one()
+    # Ao contrário do add, o método delete vai excluir o
+    # objeto passado
+    session.delete(aluno)
+    session.commit()
+
+
+# Janela
+class Janela:
+    def __init__(self):
+        self.window = Tk()
+        self.window.geometry("500x480+500+180")
+        self.window.title("Cadastro de alunos")
+        self.window.resizable(False, False)
+
+        # CONFIGS
+        self.window.columnconfigure(0, weight=1)
+        self.window.columnconfigure(1, weight=10)
+
+        # PANELS
+        self.panel = PanedWindow(self.window)
+        self.panel_footer = PanedWindow(self.window)
+
+        # LABELS
+        self.lbl_matricula = Label(self.window, text="Matricula:", font="Verdana 12 bold")
+        self.lbl_nome = Label(self.window, text="Nome:", font="Verdana 12 bold")
+        self.lbl_idade = Label(self.window, text="Idade:", font="Verdana 12 bold")
+        self.lbl_curso = Label(self.window, text="Curso:", font="Verdana 12 bold")
+        self.lbl_nota = Label(self.window, text="Nota:", font="Verdana 12 bold")
+        # LABEL BUSCAR TODO
+
+        # ENTRIES
+        self.txt_matricula = Entry(self.window, state="disabled")
+        self.txt_nome = Entry(self.window, width=20)
+        self.txt_idade = Entry(self.window)
+        self.txt_nota = Entry(self.window)
+        # TODO - TXT_BUSCAR STRINGVAR() TEXTCHANGED
+
+        # COMBOBOX
+        self.cursos = ["Dev Fullstack", "Metaverso", "Design", "Marketing"]
+        self.cb_cursos = ttk.Combobox(self.window, values=self.cursos)
+
+        # TREEVIEW
+        self.tabela = ttk.Treeview(self.window, columns=("matricula",
+                                                         "nome",
+                                                         "idade",
+                                                         "curso",
+                                                         "nota"), show="headings")
+        self.tabela.column("matricula", minwidth=5, width=50)
+        self.tabela.column("nome", minwidth=5, width=50)
+        self.tabela.column("idade", minwidth=5, width=50)
+        self.tabela.column("curso", minwidth=5, width=50)
+        self.tabela.column("nota", minwidth=5, width=50)
+
+        #RENOMEAR AS COLUNAS
+        self.tabela.heading("matricula", text="Matricula")
+        self.tabela.heading("nome", text="Nome")
+        self.tabela.heading("idade", text="Idade")
+        self.tabela.heading("curso", text="Curso")
+        self.tabela.heading("nota", text="Nota")
+
+        # BIND
+        self.tabela.bind("<ButtonRelease-1>", self.tabelaClick)
+
+        # BOTÕES
+        self.btn_cadastrar = Button(self.panel, text="Cadastrar", command=self.cadastrar)
+        self.btn_editar = Button(self.panel, text="Atualizar", command=self.editar)
+        self.btn_excluir = Button(self.panel, text="Excluir", command=self.excluir)
+
+        # BOTÕES GRID
+        self.btn_cadastrar.grid(row=0, column=1, sticky=W, padx=10)
+        self.btn_editar.grid(row=0, column=2, padx=10)
+        self.btn_excluir.grid(row=0, column=3, padx=10)
+
+        # LABELS GRID
+        self.lbl_matricula.grid(column=0, row=0, sticky=W)
+        self.lbl_nome.grid(column=0, row=1, sticky=W)
+        self.lbl_idade.grid(column=0, row=2, sticky=W)
+        self.lbl_curso.grid(column=0, row=3, sticky=W)
+        self.lbl_nota.grid(column=0, row=4, sticky=W)
+
+        # ENTRIES GRID
+        self.txt_matricula.grid(row=0, column=1, sticky=W)
+        self.txt_nome.grid(row=1, column=1, sticky=W)
+        self.txt_idade.grid(row=2, column=1, sticky=W)
+        self.cb_cursos.grid(row=3, column=1, sticky=W)
+        self.txt_nota.grid(row=4, column=1, sticky=W)
+
+        # TREEVIEW GRID
+        self.tabela.grid(row=6, column=1, sticky=W, pady=10)
+
+        # PANELS GRID
+        self.panel.grid(row=5, column=1, sticky=W, pady=10)
+        self.panel_footer.grid(row=7, column=0, sticky=W, columnspan=2)
+
+        # CARREGAR LISTAR
+        self.carregarTabela()
+
+        self.window.mainloop()
+
+    def carregarTabela(self):
+        alunos = select()
+
+        # Inserindo os alunos na tabela
+        for aluno in alunos:
+            self.tabela.insert("", "end", values=(aluno.matricula,
+                                                  aluno.nome,
+                                                  aluno.idade,
+                                                  aluno.curso,
+                                                  aluno.nota))
+
+    def cadastrar(self):
+        # Pegando os dados dos campos
+        nome = self.txt_nome.get()
+        idade = int(self.txt_idade.get())
+        curso = self.cb_cursos.get()
+        nota = float(self.txt_nota.get())
+
+        inserir(nome, idade, curso, nota)
+        tmsg.showinfo("Sucesso!", "Aluno Cadastrado Com Sucesso! :D")
+        self.limparCampos()
+        self.limparTabela()
+        self.carregarTabela()
+
+    def editar(self):
+        # Pegando os dados dos campos
+        matricula = int(self.txt_matricula.get())
+        nome = self.txt_nome.get()
+        idade = int(self.txt_idade.get())
+        curso = self.cb_cursos.get()
+        nota = float(self.txt_nota.get())
+
+        opcao = tmsg.askyesno("Tem certeza?", "Deseja realmente alterar os dados?")
+        if opcao:
+            alterar(matricula, nome, idade, curso, nota)
+            tmsg.showinfo("Sucesso!", "Dados alterados com sucesso!")
+            self.limparCampos()
+            self.limparTabela()
+            self.carregarTabela()
+
+    def excluir(self):
+        matricula = int(self.txt_matricula.get())
+
+        opcao = tmsg.askyesno("Tem certeza?", "Deseja realmente excluir os dados?")
+        if opcao:
+            deletar(matricula)
+            tmsg.showinfo("Sucesso!", "Dados excluidos com sucesso!")
+            self.limparCampos()
+            self.limparTabela()
+            self.carregarTabela()
+
+    def limparCampos(self):
+        self.txt_matricula.config(state="normal")
+        self.txt_matricula.delete(0, END)
+        self.txt_matricula.config(state="disabled")
+
+        self.txt_nome.delete(0, END)
+        self.txt_idade.delete(0, END)
+        self.txt_nota.delete(0, END)
+        self.cb_cursos.set("")
+
+    def limparTabela(self):
+        for item in self.tabela.get_children():
+            self.tabela.delete(item)
+
+    def tabelaClick(self, event):
+        self.limparCampos()
+        # Pegando a linha clicada
+        selecionado = self.tabela.selection()[0]
+        aluno = self.tabela.item(selecionado, "values")
+
+        # INSERINDO OS ITENS NOS CAMPOS
+        self.txt_matricula.config(state="normal")
+        self.txt_matricula.insert(0, aluno[0])
+        self.txt_matricula.config(state="disabled")
+
+        self.txt_nome.insert(0, aluno[1])
+        self.txt_idade.insert(0, aluno[2])
+        self.cb_cursos.set(aluno[3])
+        self.txt_nota.insert(0, aluno[4])
+
+Janela()
